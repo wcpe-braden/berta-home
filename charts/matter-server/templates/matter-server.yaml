@@ -29,6 +29,25 @@ spec:
         {{- toYaml . | nindent 8 }}
         {{- end }}
     spec:
+      {{- if .Values.threadRouting.enabled }}
+      initContainers:
+        - name: thread-routes
+          image: busybox:1.36
+          securityContext:
+            privileged: true
+          command:
+            - sh
+            - -c
+            - |
+              IF={{ .Values.threadRouting.interface }}
+              for i in $(seq 1 30); do
+                [ -d "/proc/sys/net/ipv6/conf/$IF" ] && break
+                sleep 1
+              done
+              sysctl -w net.ipv6.conf.$IF.accept_ra=2
+              sysctl -w net.ipv6.conf.$IF.accept_ra_rt_info_max_plen={{ .Values.threadRouting.maxPrefixLen }}
+              echo "thread routing enabled on $IF"
+      {{- end }}
       containers:
         - name: matter-server
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"

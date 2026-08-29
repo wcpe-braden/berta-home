@@ -154,6 +154,36 @@ fabric credentials, and losing them means re-commissioning every device.
 Home Assistant then points at `ws://<macvlan-ip>:5580/ws`, not `localhost:5580`
 and not the ClusterIP.
 
+### Matter-over-Thread needs one extra kernel setting
+
+Thread devices (Aqara FP300 and friends) sit on their own IPv6 prefix behind a
+Thread Border Router, reachable only via a route the router advertises using
+**Route Information Options** in IPv6 RAs. Linux ignores RIOs by default:
+`accept_ra_rt_info_max_plen` is `0`, so the route is never installed.
+
+Symptom - commissioning fails while Wi-Fi Matter devices work fine:
+
+```text
+SendMessage() to UDP:[fdba:...:5540] failed: OS Error 0x02000065: Network is unreachable
+Failed during PASE session pairing request -> Discovery timed out
+```
+
+Fix, via a privileged init container (`/proc/sys` is read-only otherwise):
+
+```sh
+sysctl -w net.ipv6.conf.net1.accept_ra=2
+sysctl -w net.ipv6.conf.net1.accept_ra_rt_info_max_plen=64
+```
+
+The routes then appear as `proto ra`, one per border router:
+
+```text
+fdba:4741:6204::/64 via fe80::56ef:44ff:fea1:831a dev net1 proto ra
+```
+
+Diagnose by comparing prefixes: if the failing address is on a different ULA
+prefix than the pod's own `net1` address, it is Thread, not LAN.
+
 ## GPU
 
 GPUs are exposed through the **HAMI** device plugin, sliced (e.g. `nvidia.com/gpu=30`),

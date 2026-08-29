@@ -47,6 +47,21 @@ bluetooth:
 # and commissioning fails.
 primaryInterface: net1
 
+# Matter-over-Thread devices (e.g. Aqara FP300) live on a separate IPv6 prefix
+# behind a Thread Border Router. The router advertises that prefix using Route
+# Information Options in IPv6 RAs, but Linux ignores RIOs unless
+# accept_ra_rt_info_max_plen is raised - it defaults to 0.
+#
+# Symptom when unset: commissioning fails with
+#   SendMessage() to UDP:[fdxx:...]:5540 failed: Network is unreachable
+#   Failed during PASE session pairing request -> Discovery timed out
+#
+# Needs a privileged init container because /proc/sys is read-only otherwise.
+threadRouting:
+  enabled: true
+  interface: net1
+  maxPrefixLen: 64
+
 logLevel: info
 extraArgs: []
 resources: {}
