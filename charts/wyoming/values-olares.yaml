@@ -1,0 +1,34 @@
+# Olares (k3s) values.
+#
+# IMPORTANT — install into Home Assistant's own namespace:
+#
+#   helm upgrade --install voice charts/wyoming \
+#     -f charts/wyoming/values-olares.yaml \
+#     --namespace homeassistant-bradenwright
+#
+# Why: Olares auto-creates an "others-np" NetworkPolicy in any namespace it
+# does not own, permitting ingress ONLY from that same namespace. An Olares
+# controller then DELETES any NetworkPolicy you add (verified: removed within
+# ~1 second of creation), so you cannot grant HA access to a standalone
+# namespace. Co-locating with HA means the same-namespace allow already
+# covers it.
+#
+# HA then connects to:   voice-wyoming-whisper : 10300
+
+whisper:
+  service:
+    type: ClusterIP
+
+  # CPU first, matching the known-good kind config. Flip GPU on as a separate
+  # change so only one variable moves at a time, then raise the model to use
+  # the RTX 5090 (distil-large-v3 is a large accuracy win over base-int8).
+  gpu:
+    enabled: false
+  model: base-int8
+
+  persistence:
+    enabled: false
+
+# Pointless on Olares - the controller deletes any policy we create.
+networkPolicy:
+  enabled: false

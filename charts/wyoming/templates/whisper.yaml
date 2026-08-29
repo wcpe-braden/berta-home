@@ -1,0 +1,108 @@
+{{- if .Values.whisper.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "wyoming.fullname" . }}-whisper
+  labels:
+    {{- include "wyoming.labels" . | nindent 4 }}
+    app.kubernetes.io/component: whisper
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: whisper
+  template:
+    metadata:
+      labels:
+        {{- include "wyoming.labels" . | nindent 8 }}
+        app.kubernetes.io/component: whisper
+      {{- with .Values.podAnnotations }}
+      annotations: {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      containers:
+        - name: whisper
+          image: "{{ .Values.whisper.image.repository }}:{{ .Values.whisper.image.tag }}"
+          imagePullPolicy: {{ .Values.whisper.image.pullPolicy }}
+          args:
+            - --model
+            - {{ .Values.whisper.model | quote }}
+            - --language
+            - {{ .Values.whisper.language | quote }}
+            - --beam-size
+            - {{ .Values.whisper.beamSize | quote }}
+            - --uri
+            - tcp://0.0.0.0:10300
+            - --data-dir
+            - /data
+            - --download-dir
+            - /data
+            {{- with .Values.whisper.extraArgs }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          ports:
+            - name: wyoming
+              containerPort: 10300
+              protocol: TCP
+          resources:
+            {{- include "wyoming.resources" .Values.whisper | nindent 12 }}
+          volumeMounts:
+            - name: data
+              mountPath: /data
+      volumes:
+        - name: data
+        {{- if .Values.whisper.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "wyoming.fullname" . }}-whisper
+        {{- else }}
+          emptyDir: {}
+        {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity: {{- toYaml . | nindent 8 }}
+      {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "wyoming.fullname" . }}-whisper
+  labels:
+    {{- include "wyoming.labels" . | nindent 4 }}
+    app.kubernetes.io/component: whisper
+spec:
+  type: {{ .Values.whisper.service.type }}
+  selector:
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: whisper
+  ports:
+    - name: wyoming
+      port: {{ .Values.whisper.service.port }}
+      targetPort: 10300
+      protocol: TCP
+      {{- if and (eq .Values.whisper.service.type "NodePort") .Values.whisper.service.nodePort }}
+      nodePort: {{ .Values.whisper.service.nodePort }}
+      {{- end }}
+{{- if .Values.whisper.persistence.enabled }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "wyoming.fullname" . }}-whisper
+  labels:
+    {{- include "wyoming.labels" . | nindent 4 }}
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: {{ .Values.whisper.persistence.size }}
+  {{- with .Values.whisper.persistence.storageClass }}
+  storageClassName: {{ . }}
+  {{- end }}
+{{- end }}
+{{- end }}

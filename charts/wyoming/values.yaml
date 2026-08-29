@@ -1,0 +1,80 @@
+# Wyoming voice services for Home Assistant.
+#
+# Two deploy targets are expected:
+#   - kind on a laptop  -> service.type=NodePort  (needs kind extraPortMappings)
+#   - Olares (k3s)      -> service.type=ClusterIP (HA reaches ClusterIPs directly)
+
+nameOverride: ""
+fullnameOverride: ""
+
+whisper:
+  enabled: true
+  image:
+    repository: rhasspy/wyoming-whisper
+    tag: latest
+    pullPolicy: IfNotPresent
+
+  # tiny-int8 | base-int8 | small-int8 | medium-int8 | distil-large-v3 ...
+  # CPU: stick to base-int8 or smaller. GPU: distil-large-v3 is a big accuracy win.
+  model: base-int8
+  language: en
+  beamSize: 1
+  extraArgs: []
+
+  service:
+    type: ClusterIP
+    port: 10300
+    nodePort: null      # only used when type=NodePort
+
+  gpu:
+    enabled: false
+    count: 1
+    memoryMiB: 5120     # Olares uses the HAMI plugin: nvidia.com/gpumem
+
+  resources: {}
+
+  persistence:
+    enabled: false      # off => emptyDir; model re-downloads on restart
+    size: 5Gi
+    storageClass: ""
+
+piper:
+  enabled: false        # Stage 1 uses existing Google Translate TTS
+  image:
+    repository: rhasspy/wyoming-piper
+    tag: latest
+    pullPolicy: IfNotPresent
+
+  voice: en_US-lessac-medium
+  extraArgs: []
+
+  service:
+    type: ClusterIP
+    port: 10200
+    nodePort: null
+
+  gpu:
+    enabled: false
+    count: 1
+    memoryMiB: 2048
+
+  resources: {}
+
+  persistence:
+    enabled: false
+    size: 2Gi
+    storageClass: ""
+
+podAnnotations: {}
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+# Olares drops an "others-np" NetworkPolicy into any namespace it doesn't
+# own, which allows ingress only from the same namespace. Without the policy
+# below, Home Assistant times out connecting to these services.
+networkPolicy:
+  enabled: true
+  allowFromNamespaces:
+    - homeassistant-bradenwright
+  allowFromCIDRs: []

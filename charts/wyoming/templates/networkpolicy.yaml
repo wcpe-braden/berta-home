@@ -1,0 +1,32 @@
+{{- if .Values.networkPolicy.enabled }}
+{{- /*
+  Olares auto-creates an "others-np" NetworkPolicy in any namespace it does
+  not recognise as one of its own apps. That policy permits ingress ONLY from
+  the same namespace, so Home Assistant cannot reach this service without an
+  explicit allow. NetworkPolicies are additive (the union of all allows), so
+  this sits alongside others-np rather than replacing it.
+*/}}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "wyoming.fullname" . }}-allow
+  labels:
+    {{- include "wyoming.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+      {{- range .Values.networkPolicy.allowFromNamespaces }}
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ . | quote }}
+      {{- end }}
+      {{- range .Values.networkPolicy.allowFromCIDRs }}
+        - ipBlock:
+            cidr: {{ . | quote }}
+      {{- end }}
+{{- end }}

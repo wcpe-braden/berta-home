@@ -1,0 +1,98 @@
+{{- if .Values.piper.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "wyoming.fullname" . }}-piper
+  labels:
+    {{- include "wyoming.labels" . | nindent 4 }}
+    app.kubernetes.io/component: piper
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: piper
+  template:
+    metadata:
+      labels:
+        {{- include "wyoming.labels" . | nindent 8 }}
+        app.kubernetes.io/component: piper
+      {{- with .Values.podAnnotations }}
+      annotations: {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      containers:
+        - name: piper
+          image: "{{ .Values.piper.image.repository }}:{{ .Values.piper.image.tag }}"
+          imagePullPolicy: {{ .Values.piper.image.pullPolicy }}
+          args:
+            - --voice
+            - {{ .Values.piper.voice | quote }}
+            - --uri
+            - tcp://0.0.0.0:10200
+            - --data-dir
+            - /data
+            - --download-dir
+            - /data
+            {{- with .Values.piper.extraArgs }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          ports:
+            - name: wyoming
+              containerPort: 10200
+              protocol: TCP
+          resources:
+            {{- include "wyoming.resources" .Values.piper | nindent 12 }}
+          volumeMounts:
+            - name: data
+              mountPath: /data
+      volumes:
+        - name: data
+        {{- if .Values.piper.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "wyoming.fullname" . }}-piper
+        {{- else }}
+          emptyDir: {}
+        {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector: {{- toYaml . | nindent 8 }}
+      {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "wyoming.fullname" . }}-piper
+  labels:
+    {{- include "wyoming.labels" . | nindent 4 }}
+    app.kubernetes.io/component: piper
+spec:
+  type: {{ .Values.piper.service.type }}
+  selector:
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: piper
+  ports:
+    - name: wyoming
+      port: {{ .Values.piper.service.port }}
+      targetPort: 10200
+      protocol: TCP
+      {{- if and (eq .Values.piper.service.type "NodePort") .Values.piper.service.nodePort }}
+      nodePort: {{ .Values.piper.service.nodePort }}
+      {{- end }}
+{{- if .Values.piper.persistence.enabled }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "wyoming.fullname" . }}-piper
+  labels:
+    {{- include "wyoming.labels" . | nindent 4 }}
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: {{ .Values.piper.persistence.size }}
+  {{- with .Values.piper.persistence.storageClass }}
+  storageClassName: {{ . }}
+  {{- end }}
+{{- end }}
+{{- end }}

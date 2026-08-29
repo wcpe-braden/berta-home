@@ -1,0 +1,17 @@
+# Local kind cluster on the MacBook. Requires matching extraPortMappings
+# in the kind cluster config (30300->10300, 30200->10200, 0.0.0.0).
+# HA then reaches the Mac's LAN IP directly.
+whisper:
+  service:
+    type: NodePort
+    nodePort: 30300
+  gpu:
+    enabled: false      # Docker Desktop on macOS has no GPU passthrough
+  model: base-int8
+piper:
+  service:
+    type: NodePort
+    nodePort: 30200
+
+networkPolicy:
+  enabled: false   # plain kind has no Olares others-np policy
