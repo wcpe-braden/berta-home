@@ -29,6 +29,16 @@ whisper:
   persistence:
     enabled: false
 
+piper:
+  enabled: true
+  voice: en_US-lessac-medium
+  service:
+    type: ClusterIP
+  gpu:
+    enabled: false
+  persistence:
+    enabled: false
+
 # Pointless on Olares - the controller deletes any policy we create.
 networkPolicy:
   enabled: false
