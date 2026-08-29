@@ -42,6 +42,10 @@ spec:
             - "5580"
             - --log-level
             - {{ .Values.logLevel | quote }}
+            {{- with .Values.primaryInterface }}
+            - --primary-interface
+            - {{ . | quote }}
+            {{- end }}
             {{- if .Values.bluetooth.enabled }}
             - --bluetooth-adapter
             - {{ .Values.bluetooth.adapter | quote }}

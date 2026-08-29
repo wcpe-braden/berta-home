@@ -41,6 +41,12 @@ bluetooth:
   enabled: false
   adapter: 0
 
+# Which interface CHIP uses for mDNS advertisement and link-local addresses.
+# Must be the macvlan interface - on the overlay it logs
+#   "Failed to advertise records ... Cannot assign requested address"
+# and commissioning fails.
+primaryInterface: net1
+
 logLevel: info
 extraArgs: []
 resources: {}
