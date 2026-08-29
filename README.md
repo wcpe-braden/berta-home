@@ -18,6 +18,30 @@ Companion to [berta-docs](../docs); this repo holds what actually deploys.
 Whisper is deployed and reachable from Home Assistant. Voice pipeline wiring
 (Wyoming integration → Assist pipeline → Voice PE satellite) is the next step.
 
+## Next: "hey berta" custom wake word
+
+Replace `okay nabu` with a custom wake word via ESPHome's
+[micro_wake_word](https://esphome.io/components/micro_wake_word/). Not a config
+change — it needs a trained model — but the pieces are already here:
+
+```text
+samples    Piper (deployed, 163 voices) synthesizes the training phrases
+training   RTX 5090 / 24GB on the Olares One
+output     TFLite + JSON manifest, flashed to the Voice PE
+```
+
+Blocked on one thing: flashing custom firmware means owning the device's ESPHome
+config, which needs an **ESPHome dashboard**. HA Container has no add-on store,
+so that is another chart in this repo — the same pattern as `wyoming` and
+`matter-server`. It would also give an over-the-air recovery path for the
+encryption-key mismatch that cost an hour during setup.
+
+Order: ESPHome dashboard chart -> adopt the Voice PE -> train the model -> flash.
+
+Training process lives in the [microWakeWord
+repo](https://github.com/kahrendt/microWakeWord). Tuning knobs on the device
+side are probability cutoff, sliding window size and VAD.
+
 ## The two things that cost the most time
 
 **1. `helm` can't find the cluster, `kubectl` can.** `kubectl` is a symlink to
