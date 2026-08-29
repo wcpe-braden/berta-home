@@ -1,0 +1,7 @@
+apiVersion: v2
+name: matter-server
+description: python-matter-server for Home Assistant's Matter integration on Olares
+type: application
+version: 0.1.0
+appVersion: "stable"
+keywords: [home-assistant, matter, thread, smart-home]

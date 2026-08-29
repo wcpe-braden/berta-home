@@ -110,6 +110,50 @@ Three things that follow, all of which cause confusing bugs:
    Other LAN peers (a laptop, a speaker) work fine. This rules out `hostNetwork`,
    NodePort, and "just point it at the host IP" designs — use ClusterIP instead.
 
+## Giving a workload LAN access (macvlan) - and its two gotchas
+
+Some workloads need real LAN presence: IPv6, multicast, mDNS. The pod overlay
+cannot do this (it is IPv4-only, `10.233.64.0/24`). Matter is the clear example.
+
+Reuse the same NetworkAttachmentDefinition Olares uses for its overlay gateway:
+
+```yaml
+metadata:
+  annotations:
+    k8s.v1.cni.cncf.io/networks: kube-system/underlay-macvlan
+```
+
+The pod then gets a `net1` interface with a DHCP IPv4 **and** SLAAC IPv6
+(global ULA + link-local) - enough for Matter to commission devices.
+
+**Gotcha 1: attaching macvlan breaks the pod's ClusterIP path.** Verified: with
+macvlan attached, other pods get `EHOSTUNREACH` on both the ClusterIP and the
+pod IP, while an identical pod without macvlan is reachable normally. Consumers
+must use the macvlan **LAN IP** instead. Keep the Service for discovery, but do
+not rely on it for traffic.
+
+**Gotcha 2: the MAC is regenerated on every restart**, so the DHCP lease moves
+and any URL you configured breaks. A router reservation alone will not help,
+because it is keyed on a MAC that keeps changing. Pin the MAC in the annotation,
+then reserve *that* at the router:
+
+```yaml
+k8s.v1.cni.cncf.io/networks: >-
+  [{"name":"underlay-macvlan","namespace":"kube-system","mac":"02:0a:5e:55:80:01"}]
+```
+
+Use a locally-administered MAC (second hex digit 2, 6, A or E).
+
+## Matter on Olares
+
+HA Container has no add-on store, so `python-matter-server` runs as its own
+workload. It needs the macvlan above; on the overlay alone it cannot see devices.
+Persist `/data` (a PVC on the default `local` storage class) - it holds the
+fabric credentials, and losing them means re-commissioning every device.
+
+Home Assistant then points at `ws://<macvlan-ip>:5580/ws`, not `localhost:5580`
+and not the ClusterIP.
+
 ## GPU
 
 GPUs are exposed through the **HAMI** device plugin, sliced (e.g. `nvidia.com/gpu=30`),

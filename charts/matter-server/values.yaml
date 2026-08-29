@@ -1,0 +1,48 @@
+# python-matter-server for HA's Matter integration.
+#
+# Two networks, deliberately:
+#   eth0 (pod overlay) -> ClusterIP Service -> Home Assistant connects here.
+#                         Stable DNS, immune to the macvlan DHCP churn.
+#   net1 (macvlan)     -> real LAN presence with IPv6 + multicast, which is
+#                         what Matter needs to talk to devices. The pod
+#                         overlay is IPv4-only and cannot do Matter.
+
+image:
+  repository: ghcr.io/home-assistant-libs/python-matter-server
+  tag: stable
+  pullPolicy: IfNotPresent
+
+# Attach the Olares underlay macvlan. Without this, Matter cannot reach devices.
+macvlan:
+  enabled: true
+  networkAttachment: kube-system/underlay-macvlan
+
+  # Multus regenerates the macvlan MAC on every pod restart, which pulls a new
+  # DHCP lease and moves the IP - breaking the URL configured in Home Assistant.
+  # Pinning the MAC makes a router DHCP reservation actually stick.
+  # Must be locally-administered (second hex digit 2, 6, A or E).
+  mac: "02:0a:5e:55:80:01"
+
+service:
+  type: ClusterIP
+  port: 5580
+
+# Fabric credentials live here. If this is lost, every device must be
+# re-commissioned - so persistence is ON by default, unlike the wyoming chart.
+persistence:
+  enabled: true
+  size: 2Gi
+  storageClass: ""      # empty = cluster default ("local")
+
+# Bluetooth commissioning needs host BT access, which is awkward in k8s.
+# Prefer sharing devices from an existing Apple/Google fabric instead - that
+# gives a pairing code and needs no Bluetooth at all.
+bluetooth:
+  enabled: false
+  adapter: 0
+
+logLevel: info
+extraArgs: []
+resources: {}
+podAnnotations: {}
+nodeSelector: {}

@@ -1,0 +1,105 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "matter-server.fullname" . }}
+  labels:
+    {{- include "matter-server.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate          # single writer on the fabric credential volume
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/name: {{ .Chart.Name }}
+  template:
+    metadata:
+      labels:
+        {{- include "matter-server.labels" . | nindent 8 }}
+      annotations:
+        {{- if .Values.macvlan.enabled }}
+        {{- if .Values.macvlan.mac }}
+        k8s.v1.cni.cncf.io/networks: >-
+          [{"name":"{{ (splitList "/" .Values.macvlan.networkAttachment) | last }}","namespace":"{{ (splitList "/" .Values.macvlan.networkAttachment) | first }}","mac":"{{ .Values.macvlan.mac }}"}]
+        {{- else }}
+        k8s.v1.cni.cncf.io/networks: {{ .Values.macvlan.networkAttachment | quote }}
+        {{- end }}
+        {{- end }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      containers:
+        - name: matter-server
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args:
+            - --storage-path
+            - /data
+            - --paa-root-cert-dir
+            - /data/credentials
+            - --port
+            - "5580"
+            - --log-level
+            - {{ .Values.logLevel | quote }}
+            {{- if .Values.bluetooth.enabled }}
+            - --bluetooth-adapter
+            - {{ .Values.bluetooth.adapter | quote }}
+            {{- end }}
+            {{- with .Values.extraArgs }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          ports:
+            - name: ws
+              containerPort: 5580
+              protocol: TCP
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      volumes:
+        - name: data
+        {{- if .Values.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "matter-server.fullname" . }}
+        {{- else }}
+          emptyDir: {}
+        {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector: {{- toYaml . | nindent 8 }}
+      {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "matter-server.fullname" . }}
+  labels:
+    {{- include "matter-server.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.type }}
+  selector:
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/name: {{ .Chart.Name }}
+  ports:
+    - name: ws
+      port: {{ .Values.service.port }}
+      targetPort: 5580
+      protocol: TCP
+{{- if .Values.persistence.enabled }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "matter-server.fullname" . }}
+  labels:
+    {{- include "matter-server.labels" . | nindent 4 }}
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: {{ .Values.persistence.size }}
+  {{- with .Values.persistence.storageClass }}
+  storageClassName: {{ . }}
+  {{- end }}
+{{- end }}
