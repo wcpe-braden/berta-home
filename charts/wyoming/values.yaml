@@ -18,7 +18,21 @@ whisper:
   # CPU: stick to base-int8 or smaller. GPU: distil-large-v3 is a big accuracy win.
   model: base-int8
   language: en
+
+  # 1 is fastest and least accurate. 5 is the usual accuracy/speed compromise.
   beamSize: 1
+
+  # ctranslate2 CPU options: int8, int8_float32, int16, float32. Empty = default.
+  computeType: ""
+  cpuThreads: null
+
+  # Biases decoding toward expected vocabulary. Very effective for short
+  # commands with unusual words (room names, "bass", device names).
+  initialPrompt: ""
+
+  # Silero VAD - drops non-speech before transcribing.
+  vadFilter: false
+
   extraArgs: []
 
   service:

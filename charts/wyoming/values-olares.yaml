@@ -23,8 +23,16 @@ whisper:
   # change so only one variable moves at a time, then raise the model to use
   # the RTX 5090 (distil-large-v3 is a large accuracy win over base-int8).
   gpu:
-    enabled: false
-  model: base-int8
+    enabled: false          # Braden prefers CPU-only; 24 cores, plenty of headroom
+
+  # Tuned for command recognition on CPU. Baseline base-int8/beam-1 ran at
+  # RTF 0.56x, so there was room to trade speed for accuracy.
+  model: small-int8
+  beamSize: 5
+  vadFilter: true
+  cpuThreads: 8
+  initialPrompt: "Okay Nabu. Play bass. Turn on the office speaker. Bedroom, TV Room, Office, Sonos, Roam, Move, Fire TV, Plex, Shelly."
+
 
   persistence:
     enabled: false

@@ -32,6 +32,25 @@ spec:
             - {{ .Values.whisper.language | quote }}
             - --beam-size
             - {{ .Values.whisper.beamSize | quote }}
+            {{- with .Values.whisper.computeType }}
+            - --compute-type
+            - {{ . | quote }}
+            {{- end }}
+            {{- with .Values.whisper.cpuThreads }}
+            - --cpu-threads
+            - {{ . | quote }}
+            {{- end }}
+            {{- with .Values.whisper.initialPrompt }}
+            - --initial-prompt
+            - {{ . | quote }}
+            {{- end }}
+            {{- if .Values.whisper.vadFilter }}
+            - --vad-filter
+            {{- end }}
+            {{- if .Values.whisper.gpu.enabled }}
+            - --device
+            - cuda
+            {{- end }}
             - --uri
             - tcp://0.0.0.0:10300
             - --data-dir
