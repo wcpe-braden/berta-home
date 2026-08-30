@@ -1,0 +1,33 @@
+# Scripts here become script.* entities. Expose them to Assist
+# (Settings > Voice assistants > Expose) and you can run them by voice:
+#   "turn on office music"
+#   "turn on office speaker test"
+
+office_speaker_test:
+  alias: Office Speaker Test
+  icon: mdi:bullhorn
+  mode: single
+  sequence:
+    - action: tts.speak
+      target:
+        entity_id: tts.google_translate_en_com
+      data:
+        media_player_entity_id: media_player.office_office
+        message: "Office automation is working."
+
+office_music:
+  alias: Office Music
+  icon: mdi:music
+  mode: single
+  sequence:
+    - action: media_player.volume_set
+      target:
+        entity_id: media_player.office_office
+      data:
+        volume_level: 0.25
+    - action: media_player.play_media
+      target:
+        entity_id: media_player.office_office
+      data:
+        media_content_type: favorite_item_id
+        media_content_id: "FV:2/6"   # "Sonos Presents"

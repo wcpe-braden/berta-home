@@ -1,0 +1,208 @@
+- id: '1787381514578'
+  alias: Play Bass
+  description: ''
+  triggers:
+  - trigger: conversation
+    command: Play Bass
+  conditions: []
+  actions:
+  - action: switch.toggle
+    metadata: {}
+    target:
+      label_id: bass
+    data: {}
+  mode: single
+
+# --- Sonos grouping -------------------------------------------------------
+# NOTE: entity_ids are historical and do NOT match the rooms.
+#   media_player.tv_room_tv_room        = Arc  (Living Room)
+#   media_player.office_office          = Five (Office)
+#   media_player.bedroom_bedroom        = Arc  (Office)      <-- not Bedroom
+#   media_player.bedroom_bedroom_2      = Five (Bedroom)
+#   media_player.sonos_roam             = Roam (Bathroom)
+#   media_player.living_room_move_green = Move (Kitchen)     <-- not Living Room
+
+- id: sonos_group_all
+  alias: Sonos - Group all speakers
+  description: Join every Sonos to the Living Room Arc.
+  triggers:
+  - trigger: conversation
+    command:
+    - Group all speakers
+    - Group the speakers
+    - Group all the speakers
+    - Play everywhere
+    - Play in every room
+    - Play music everywhere
+  conditions: []
+  actions:
+  - action: media_player.join
+    target:
+      entity_id: media_player.tv_room_tv_room
+    data:
+      group_members:
+      - media_player.office_office
+      - media_player.bedroom_bedroom
+      - media_player.bedroom_bedroom_2
+      - media_player.sonos_roam
+      - media_player.living_room_move_green
+  mode: single
+
+- id: sonos_ungroup_all
+  alias: Sonos - Ungroup all speakers
+  description: Split every Sonos back out to standalone.
+  triggers:
+  - trigger: conversation
+    command:
+    - Ungroup all speakers
+    - Ungroup the speakers
+    - Ungroup everything
+    - Split the speakers
+    - Stop playing everywhere
+  conditions: []
+  actions:
+  - action: media_player.unjoin
+    target:
+      entity_id:
+      - media_player.office_office
+      - media_player.bedroom_bedroom
+      - media_player.bedroom_bedroom_2
+      - media_player.sonos_roam
+      - media_player.living_room_move_green
+      - media_player.tv_room_tv_room
+  mode: single
+
+- id: sonos_join_office
+  alias: Sonos - Add office to the group
+  triggers:
+  - trigger: conversation
+    command:
+    - Add the office to the group
+    - Add office to the group
+    - Group the office
+    - Play in the office too
+  conditions: []
+  actions:
+  - action: media_player.join
+    target:
+      entity_id: media_player.tv_room_tv_room
+    data:
+      group_members:
+      - media_player.office_office
+      - media_player.bedroom_bedroom
+  mode: single
+
+- id: sonos_join_kitchen
+  alias: Sonos - Add kitchen to the group
+  triggers:
+  - trigger: conversation
+    command:
+    - Add the kitchen to the group
+    - Add kitchen to the group
+    - Group the kitchen
+    - Play in the kitchen too
+  conditions: []
+  actions:
+  - action: media_player.join
+    target:
+      entity_id: media_player.tv_room_tv_room
+    data:
+      group_members:
+      - media_player.living_room_move_green
+  mode: single
+
+- id: sonos_join_bedroom
+  alias: Sonos - Add bedroom to the group
+  triggers:
+  - trigger: conversation
+    command:
+    - Add the bedroom to the group
+    - Add bedroom to the group
+    - Group the bedroom
+    - Play in the bedroom too
+  conditions: []
+  actions:
+  - action: media_player.join
+    target:
+      entity_id: media_player.tv_room_tv_room
+    data:
+      group_members:
+      - media_player.bedroom_bedroom_2
+  mode: single
+
+- id: sonos_join_bathroom
+  alias: Sonos - Add bathroom to the group
+  triggers:
+  - trigger: conversation
+    command:
+    - Add the bathroom to the group
+    - Add bathroom to the group
+    - Group the bathroom
+    - Play in the bathroom too
+  conditions: []
+  actions:
+  - action: media_player.join
+    target:
+      entity_id: media_player.tv_room_tv_room
+    data:
+      group_members:
+      - media_player.sonos_roam
+  mode: single
+
+# --- Office: music follows presence ---------------------------------------
+# One automation with both triggers so a single toggle disables the whole
+# behaviour (Settings > Automations > Office - music follows presence).
+#
+# NOTE: the Office FP300 is the "_2" suffixed entity. The un-suffixed one is
+# the Living Room. Counterintuitive, and worth re-checking after any rename.
+- id: office_music_presence
+  alias: Office - music follows presence
+  description: >-
+    Starts music when the office is occupied and pauses it ten minutes after
+    it empties. The 30s arrival delay filters mmWave false positives (fans,
+    passers-by); raise it if the sensor is still twitchy.
+  triggers:
+  - trigger: state
+    entity_id: binary_sensor.presence_multi_sensor_fp300_occupancy_2
+    to: 'on'
+    for: '00:00:30'
+    id: arrived
+  - trigger: state
+    entity_id: binary_sensor.presence_multi_sensor_fp300_occupancy_2
+    to: 'off'
+    for: '00:10:00'
+    id: left
+  conditions: []
+  actions:
+  - choose:
+    - conditions:
+      - condition: trigger
+        id: arrived
+      - condition: not
+        conditions:
+        - condition: state
+          entity_id: media_player.office_office
+          state: playing
+      sequence:
+      - action: media_player.volume_set
+        target:
+          entity_id: media_player.office_office
+        data:
+          volume_level: 0.25
+      - action: media_player.play_media
+        target:
+          entity_id: media_player.office_office
+        data:
+          media_content_type: favorite_item_id
+          media_content_id: FV:2/6
+    - conditions:
+      - condition: trigger
+        id: left
+      - condition: state
+        entity_id: media_player.office_office
+        state: playing
+      sequence:
+      - action: media_player.media_pause
+        target:
+          entity_id: media_player.office_office
+  mode: single
