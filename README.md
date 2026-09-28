@@ -1,6 +1,6 @@
-# home-assistant
+# home
 
-Deployable infrastructure for the Home Assistant layer of
+Deployable infrastructure for the smart-home layer of
 [home](../docs/apps/HOME.md) — Helm charts and operational notes for running
 things on the Olares One.
 
